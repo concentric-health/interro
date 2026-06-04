@@ -7,6 +7,7 @@ require "./create_operation"
 require "./create_many_operation"
 require "./update_operation"
 require "./delete_operation"
+require "./transaction"
 
 module Interro
   alias OrderBy = Hash(String, String)
@@ -156,6 +157,10 @@ module Interro
     end
 
     def self.[](transaction : ::DB::Transaction) : self
+      self[Transaction.new(transaction)]
+    end
+
+    def self.[](transaction : Transaction) : self
       new.with_transaction(transaction)
     end
 
@@ -173,7 +178,7 @@ module Interro
     protected property order_by_clause : OrderBy?
     protected property limit_clause : Int32? = nil
     protected property offset_clause : Int32? = nil
-    protected property transaction : ::DB::Transaction? = nil
+    protected property transaction : Transaction? = nil
     protected property args : Array(Any) = Array(Any).new
     protected property? for_update = false
     protected property? skip_locked = false
