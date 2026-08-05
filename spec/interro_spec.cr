@@ -224,6 +224,10 @@ struct UserQuery < Interro::QueryBuilder(User)
     where("name", "@@", "$1", [term])
   end
 
+  def by_name_similarity_to(name : String)
+    order_by "levenshtein(users.name, $1)", "ASC", [name]
+  end
+
   def count : Int64
     scalar("count(*)", as: Int64)
   end
@@ -584,6 +588,12 @@ describe Interro do
         .to_a
 
       results.should eq [unread1, unread2, read2, read1]
+    end
+
+    it "can perform ORDER BY with args", focus: true do
+      results = query.by_name_similarity_to(created_users.first.name).to_a
+
+      results.first.should eq created_users.first
     end
 
     it "can be used to return all values" do

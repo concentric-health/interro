@@ -537,8 +537,12 @@ module Interro
     end
 
     # :doc:
-    protected def order_by(expression, direction) : self
-      order_by_clause = OrderBy{expression => direction}
+    protected def order_by(expression, direction, args : Array(Interro::Value)? = nil) : self
+      expression = expression.gsub /\$(\d+)/ do |match|
+        index = match[1].to_i
+        "$#{self.args.size + index}"
+      end
+      order_by_clause = Interro::OrderBy{expression => direction}
 
       if current_order_clause = @order_by_clause
         order_by_clause = current_order_clause.merge(order_by_clause)
@@ -546,6 +550,9 @@ module Interro
 
       new = dup
       new.order_by_clause = order_by_clause
+      if args
+        new.args += args.map { |arg| Interro::Any.new arg }
+      end
       new
     end
 

@@ -2,6 +2,7 @@ require "../src/interro"
 
 pg = DB.open(ENV.fetch("DATABASE_URL", "postgres:///"))
 pg.exec %{CREATE EXTENSION IF NOT EXISTS "uuid-ossp"}
+pg.exec "CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"
 pg.exec "DROP TABLE IF EXISTS users CASCADE"
 pg.exec <<-SQL
   CREATE TABLE IF NOT EXISTS users (
