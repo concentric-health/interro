@@ -173,13 +173,13 @@ module Interro
     end
 
     protected property? distinct : Array(String)? = nil
-    protected property join_clause = [] of JoinClause
+    protected property join_clause : Array(JoinClause) { [] of JoinClause }
     protected property where_clause : QueryExpression?
     protected property order_by_clause : OrderBy?
     protected property limit_clause : Int32? = nil
     protected property offset_clause : Int32? = nil
     protected property transaction : Transaction? = nil
-    protected property args : Array(Any) = Array(Any).new
+    protected property args : Array(Any) { Array(Any).new }
     protected property? for_update = false
     protected property? skip_locked = false
 
@@ -200,12 +200,12 @@ module Interro
       ResultSetIterator(T).new(
         db: connection(CONFIG.read_db),
         query: to_sql,
-        args: @args,
+        args: args,
       )
     end
 
     def each(& : T ->)
-      args = @args
+      args = self.args
       if offset = offset_clause
         args += [offset] of Interro::Value
       end
@@ -332,7 +332,7 @@ module Interro
     protected def where(**params : Value | Any | Array | Subquery) : self
       where_clause = nil
       args = Array(Any).new(initial_capacity: params.size)
-      params.each_with_index(@args.size + 1) do |key, value, index|
+      params.each_with_index(self.args.size + 1) do |key, value, index|
         case value
         when Nil
           new_clause = QueryExpression.new(key.to_s, "IS", "NULL", [] of Any)
@@ -372,8 +372,8 @@ module Interro
       new = dup
       if where_clause
         new.where_clause = where_clause
-        if @args.any?
-          new.args = @args + args
+        if self.args.any?
+          new.args = self.args + args
         else # If the current array is empty, we don't need to concatenate
           new.args = args
         end
@@ -385,7 +385,7 @@ module Interro
       where_clause = nil
       args = Array(Any).new(initial_capacity: params.size)
 
-      params.each_with_index(@args.size + 1) do |key, value, index|
+      params.each_with_index(self.args.size + 1) do |key, value, index|
         if where = value.where_clause
           where_args = where.values
           args.concat where_args
@@ -414,8 +414,8 @@ module Interro
       new = dup
       if where_clause
         new.where_clause = where_clause
-        if @args.any?
-          new.args = @args + args
+        if self.args.any?
+          new.args = self.args + args
         else # If the current array is empty, we don't need to concatenate
           new.args = args
         end
@@ -425,7 +425,7 @@ module Interro
 
     # :doc:
     protected def where(table = sql_table_alias, &block : QueryRecord -> QueryExpression) : self
-      index = @args.size
+      index = args.size
       where_clause = yield(QueryRecord.new(table) { index += 1 })
       values = where_clause.values
 
@@ -435,7 +435,7 @@ module Interro
 
       new = dup
       new.where_clause = where_clause
-      new.args = @args + values
+      new.args = args + values
       new
     end
 
@@ -445,7 +445,7 @@ module Interro
       values = values.map { |value| Any.new(value) }
 
       # Translate $1, $2, ... $n to the numbers they should be.
-      arg_count = @args.size
+      arg_count = args.size
       lhs = lhs.gsub /\$(\d+)/ do |match|
         index = match[1].to_i
         "$#{arg_count + index}"
@@ -463,8 +463,8 @@ module Interro
 
       new = dup
       new.where_clause = where_clause
-      if @args.any?
-        new.args = @args + values
+      if args.any?
+        new.args = args + values
       else # If the current array is empty, we don't need to concatenate
         new.args = values
       end
@@ -477,7 +477,7 @@ module Interro
       values = values.map { |value| Any.new(value) }
 
       # Translate $1, $2, ... $n to the numbers they should be.
-      arg_count = @args.size
+      arg_count = args.size
       expression = expression.gsub /\$(\d+)/ do |match|
         index = match[1].to_i
         "$#{arg_count + index}"
@@ -490,8 +490,8 @@ module Interro
 
       new = dup
       new.where_clause = where_clause
-      if @args.any?
-        new.args = @args + values
+      if args.any?
+        new.args = args + values
       else # If the current array is empty, we don't need to concatenate
         new.args = values
       end
@@ -583,12 +583,17 @@ module Interro
 
     # :doc:
     protected def scalar(select expression : String, as type : U.class) : U forall U
-      args = @args
+      if args = @args
+        args = args.map { |arg| Any.new arg }
+      else
+        args = [] of Interro::Any
+      end
+
       if offset = offset_clause
-        args += [offset] of Interro::Value
+        args << Any.new offset
       end
       if limit = limit_clause
-        args += [limit] of Interro::Value
+        args << Any.new limit
       end
 
       sql = String.build do |str|
@@ -596,7 +601,7 @@ module Interro
           expression.to_s str
         end
       end
-      connection(CONFIG.read_db).scalar(sql, args: @args).as(U)
+      connection(CONFIG.read_db).scalar(sql, args: args).as(U)
     end
 
     # :doc:
@@ -642,7 +647,7 @@ module Interro
         str << " LIMIT 1"
       end
 
-      !connection(CONFIG.read_db).query_one? sql, args: @args, as: Int32
+      !connection(CONFIG.read_db).query_one? sql, args: args, as: Int32
     end
 
     # :doc:
@@ -923,7 +928,7 @@ module Interro
         str << " AS " << sql_table_alias
       end
 
-      @join_clause.each do |join|
+      join_clause.each do |join|
         join.to_sql str
       end
 
@@ -942,7 +947,7 @@ module Interro
         end
       end
 
-      placeholder = @args.size
+      placeholder = args.size
 
       if offset = @offset_clause
         str << " OFFSET $" << (placeholder += 1)
@@ -1028,12 +1033,12 @@ module Interro
 
       def to_sql
         lhs = @lhs.to_sql
-        lhs_arg_count = @lhs.@args.size
+        lhs_arg_count = @lhs.args.size
         rhs = @rhs
           .to_sql
           .gsub(/\$(\d+)/) { |match| "$#{match[1].to_i + lhs_arg_count}" }
 
-        arg_count = lhs_arg_count + @rhs.@args.size
+        arg_count = lhs_arg_count + @rhs.args.size
 
         String.build do |str|
           str << lhs
