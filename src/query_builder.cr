@@ -542,7 +542,7 @@ module Interro
         index = match[1].to_i
         "$#{self.args.size + index}"
       end
-      order_by_clause = Interro::OrderBy{expression => direction}
+      order_by_clause = OrderBy{expression => direction.to_s}
 
       if current_order_clause = @order_by_clause
         order_by_clause = current_order_clause.merge(order_by_clause)
@@ -551,7 +551,7 @@ module Interro
       new = dup
       new.order_by_clause = order_by_clause
       if args
-        new.args += args.map { |arg| Interro::Any.new arg }
+        new.args += args.map { |arg| Any.new arg }
       end
       new
     end
