@@ -590,7 +590,7 @@ describe Interro do
       results.should eq [unread1, unread2, read2, read1]
     end
 
-    it "can perform ORDER BY with args", focus: true do
+    it "can perform ORDER BY with args" do
       results = query.by_name_similarity_to(created_users.first.name).to_a
 
       results.first.should eq created_users.first
