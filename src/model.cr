@@ -41,7 +41,7 @@ module Interro
       {% begin %}
         {% properties = {} of Nil => Nil %}
         {% for ivar in @type.instance_vars %}
-          {% ann = ivar.annotation(::Interro::Field) %}
+          {% ann = ivar.annotation(::Interro::Field) || ivar.annotation(::DB::Field) %}
           {% unless ann && ann[:ignore] %}
             {%
               properties[ivar.id] = {
