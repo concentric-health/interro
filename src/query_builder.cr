@@ -1052,7 +1052,7 @@ module Interro
           str << ' ' << @combinator << ' '
           str << rhs
           if @limit
-            str << "LIMIT $" << (arg_count += 1)
+            str << " LIMIT $" << (arg_count += 1)
           end
         end
       end
