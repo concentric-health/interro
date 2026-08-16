@@ -806,6 +806,25 @@ describe Interro do
       users.should_not contain excluded
     end
 
+    it "can run INTERSECT queries" do
+      both = create_user(name: "Both")
+      only_lhs = create_user(name: "Both", email: "lhs-only-#{UUID.random}@example.com")
+
+      users = (query.with_name("Both") & query.with_id(both.id)).to_a
+
+      users.should contain both
+      users.should_not contain only_lhs
+    end
+
+    it "can limit compound queries" do
+      Array.new(2) { create_user(name: "Limit LHS") }
+      Array.new(2) { create_user(name: "Limit RHS") }
+
+      users = (query.with_name("Limit LHS") | query.with_name("Limit RHS")).first(3).to_a
+
+      users.size.should eq 3
+    end
+
     describe "subqueries" do
       it "queries on membership in a set" do
         included = create_user(email: "included-#{UUID.random}")

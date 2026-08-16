@@ -258,7 +258,7 @@ module Interro
     end
 
     def &(other : self) : CompoundQuery
-      CompoundQuery.new(self, "INTERSECTION", other, connection(CONFIG.read_db))
+      CompoundQuery.new(self, "INTERSECT", other, connection(CONFIG.read_db))
     end
 
     def -(other : self) : CompoundQuery
@@ -1052,7 +1052,7 @@ module Interro
           str << ' ' << @combinator << ' '
           str << rhs
           if @limit
-            str << "LIMIT $" << (arg_count += 1)
+            str << " LIMIT $" << (arg_count += 1)
           end
         end
       end
