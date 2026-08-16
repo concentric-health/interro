@@ -258,7 +258,7 @@ module Interro
     end
 
     def &(other : self) : CompoundQuery
-      CompoundQuery.new(self, "INTERSECTION", other, connection(CONFIG.read_db))
+      CompoundQuery.new(self, "INTERSECT", other, connection(CONFIG.read_db))
     end
 
     def -(other : self) : CompoundQuery
