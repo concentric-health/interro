@@ -199,7 +199,7 @@ module Interro
     def each
       sql, args = render
       ResultSetIterator(T).new(
-        db: connection(CONFIG.read_db),
+        db: read_db,
         query: sql,
         args: args,
       )
@@ -208,7 +208,7 @@ module Interro
     def each(& : T ->)
       sql, args = render
 
-      connection(Interro::CONFIG.read_db).query_each sql, args: args do |rs|
+      connection(read_db).query_each sql, args: args do |rs|
         {% begin %}
           {% if T < Tuple %}
             yield({ {% for type, index in T.type_vars %} rs.read({{type}}) {% if index < T.type_vars.size - 1 %},{% end %} {% end %} })
@@ -246,15 +246,15 @@ module Interro
     end
 
     def |(other : self) : CompoundQuery
-      CompoundQuery.new(self, "UNION", other, connection(CONFIG.read_db))
+      CompoundQuery.new(self, "UNION", other, read_db)
     end
 
     def &(other : self) : CompoundQuery
-      CompoundQuery.new(self, "INTERSECT", other, connection(CONFIG.read_db))
+      CompoundQuery.new(self, "INTERSECT", other, read_db)
     end
 
     def -(other : self) : CompoundQuery
-      CompoundQuery.new(self, "EXCEPT", other, connection(CONFIG.read_db))
+      CompoundQuery.new(self, "EXCEPT", other, read_db)
     end
 
     def count : Int64
@@ -318,7 +318,7 @@ module Interro
     protected def find(**params) : T?
       sql, args = where(**params).limit(1).render
 
-      connection(CONFIG.read_db).query_one? sql, args: args, as: T
+      connection(read_db).query_one? sql, args: args, as: T
     end
 
     # :doc:
@@ -518,7 +518,7 @@ module Interro
           expression.to_s str
         end
       end
-      connection(CONFIG.read_db).scalar(sql, args: args).as(U)
+      read_db.scalar(sql, args: args).as(U)
     end
 
     # :doc:
@@ -566,7 +566,7 @@ module Interro
         str << " LIMIT 1"
       end
 
-      !connection(CONFIG.read_db).query_one? sql, args: args, as: Int32
+      !read_db.query_one? sql, args: args, as: Int32
     end
 
     # :doc:
@@ -605,11 +605,11 @@ module Interro
     end
 
     private def create_operation
-      CreateOperation(T).new(connection(CONFIG.write_db))
+      CreateOperation(T).new(write_db)
     end
 
     private def create_many_operation
-      CreateManyOperation(T).new(connection(CONFIG.write_db))
+      CreateManyOperation(T).new(write_db)
     end
 
     # :doc:
@@ -619,7 +619,7 @@ module Interro
 
     # :doc:
     protected def update(*expressions) : Array(T)
-      UpdateOperation(T).new(connection(CONFIG.write_db))
+      UpdateOperation(T).new(write_db)
         .call self,
           set: expressions.join(", "),
           where: @where_clause
@@ -627,7 +627,7 @@ module Interro
 
     # :doc:
     protected def update(set clause : String, args : Array)
-      UpdateOperation(T).new(connection(CONFIG.write_db))
+      UpdateOperation(T).new(write_db)
         .call self,
           set: clause,
           args: args,
@@ -636,7 +636,7 @@ module Interro
 
     # :doc:
     protected def update(params : NamedTuple) : Array(T)
-      UpdateOperation(T).new(connection(CONFIG.write_db))
+      UpdateOperation(T).new(write_db)
         .call self,
           set: params,
           where: @where_clause
@@ -649,7 +649,7 @@ module Interro
 
     # :doc:
     protected def update!(*expressions) : Int64
-      UpdateOperation(T).new(connection(CONFIG.write_db))
+      UpdateOperation(T).new(write_db)
         .call! self,
           set: expressions.join(", "),
           where: @where_clause
@@ -657,7 +657,7 @@ module Interro
 
     # :doc:
     protected def update!(set clause : String, args : Array) : Int64
-      UpdateOperation(T).new(connection(CONFIG.write_db))
+      UpdateOperation(T).new(write_db)
         .call! self,
           set: clause,
           args: args,
@@ -666,7 +666,7 @@ module Interro
 
     # :doc:
     protected def update!(params : NamedTuple) : Int64
-      UpdateOperation(T).new(connection(CONFIG.write_db))
+      UpdateOperation(T).new(write_db)
         .call! self,
           set: params,
           where: @where_clause
@@ -674,22 +674,50 @@ module Interro
 
     # :doc:
     protected def delete
-      DeleteOperation.new(connection(CONFIG.write_db))
+      DeleteOperation.new(write_db)
         .call sql_table_name,
           where: @where_clause
     end
 
     protected def write_db
-      connection(CONFIG.write_db)
+      connection(write_database)
     end
 
     protected def read_db
-      connection(CONFIG.read_db)
+      connection(read_database)
+    end
+
+    # The database pools this query class reads from and writes to.
+    # These default to the global `Interro::CONFIG` pools; override them (or use the `database` macro) to bind a query class to a different logical database.
+    def read_database : ::DB::Database
+      CONFIG.read_db
+    end
+
+    def write_database : ::DB::Database
+      CONFIG.write_db
+    end
+
+    # Bind this query class to a logical database other than the global `Interro::CONFIG` one.
+    #
+    # ```
+    # struct AuditLogQuery < Interro::QueryBuilder(AuditLog)
+    #   table "audit_logs"
+    #   database AuditDB
+    # end
+    # ```
+    macro database(db)
+      def read_database : ::DB::Database
+        {{db}}
+      end
+
+      def write_database : ::DB::Database
+        {{db}}
+      end
     end
 
     # :doc:
     protected def transaction(&)
-      Interro.transaction do |txn|
+      Interro.transaction(write_database) do |txn|
         old_txn = @transaction
         @transaction = txn
         yield txn
