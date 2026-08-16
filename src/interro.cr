@@ -15,10 +15,9 @@ require "./ext/pg/result_set"
 module Interro
   VERSION = "0.6.3"
 
-  def self.transaction(& : Transaction -> T) forall T
+  def self.transaction(db : ::DB::Database = CONFIG.write_db, & : Transaction -> T) forall T
     result = uninitialized T
-    rolled_back = false
-    CONFIG.write_db.using_connection do |connection|
+    db.using_connection do |connection|
       txn = connection.begin_transaction
       transaction = Transaction.new(txn)
 
