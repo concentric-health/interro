@@ -184,7 +184,8 @@ module Interro
     protected property? skip_locked = false
 
     def first
-      first? || raise UnexpectedEmptyResultSet.new("#{self} returned no results")
+      # self.class, not self: the default struct to_s would embed the query's bound values (which can include patient identifiers) in the exception message.
+      first? || raise UnexpectedEmptyResultSet.new("#{self.class} returned no results")
     end
 
     def first(count : Int)
