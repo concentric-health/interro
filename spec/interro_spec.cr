@@ -117,6 +117,12 @@ struct UserQuery < Interro::QueryBuilder(User)
         do: Interro::Update.new(set: {name: name, updated_at: Time.utc})
   end
 
+  def upsert!(user_templates : Array(Template), name_on_conflict : String) : Int32
+    insert! user_templates.map(&.to_named_tuple),
+      on_conflict: Interro::ConflictHandler.new("email",
+        do: Interro::Update.new(set: {name: name_on_conflict}))
+  end
+
   def destroy(user : User)
     self
       .where(id: user.id)
@@ -455,6 +461,22 @@ describe Interro do
       upserted = UserQuery.new.upsert(email: email, name: "Bar")
 
       UserQuery.new.find!(id: user.id).name.should eq "Bar"
+    end
+
+    it "can upsert multiple rows" do
+      templates = [
+        UserQuery::Template.new(email: "ivy-#{UUID.random}@example.com", name: "Ivy"),
+        UserQuery::Template.new(email: "jack-#{UUID.random}@example.com", name: "Jack"),
+      ]
+
+      # No rows exist yet, so this only inserts; the conflict update does not run.
+      query.upsert!(templates, name_on_conflict: "ignored").should eq 2
+      UserQuery.new.find!(email: templates[0].email).name.should eq "Ivy"
+
+      # Every row now conflicts on email, so the handler updates each name.
+      query.upsert!(templates, name_on_conflict: "Updated").should eq 2
+      UserQuery.new.find!(email: templates[0].email).name.should eq "Updated"
+      UserQuery.new.find!(email: templates[1].email).name.should eq "Updated"
     end
 
     it "can find a row" do
