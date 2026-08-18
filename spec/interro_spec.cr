@@ -216,9 +216,9 @@ struct UserQuery < Interro::QueryBuilder(User)
     where { |user| user.deactivated_at == nil }
   end
 
-  def members_of_group_with_id(id : UUID)
+  def members_of_group(group : Group)
     where id: GroupMembershipQuery.new(self)
-      .for(group_id: id)
+      .for(group_id: group.id)
       .subquery(select: "user_id")
   end
 
@@ -856,7 +856,7 @@ describe Interro do
         GroupMembershipQuery.new.create(user: included, group: group)
         GroupMembershipQuery.new.create(user: excluded, group: another_group)
 
-        users = query.members_of_group_with_id(group.id).to_a
+        users = query.members_of_group(group).to_a
 
         users.should contain included
         users.should_not contain excluded
