@@ -929,7 +929,7 @@ describe Interro do
           UserQuery.new.with_id(user.id).first?.should eq nil
           GroupQuery.new.with_id(group.id).first?.should eq nil
         else
-          raise "One of these are not nil and both should be nil: #{{user: user, group: group}}"
+          raise "One of these is nil and neither should be nil: #{{user: user, group: group}}"
         end
       end
 
