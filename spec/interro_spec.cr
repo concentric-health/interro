@@ -839,8 +839,8 @@ describe Interro do
     end
 
     it "can limit compound queries" do
-      Array.new(2) { create_user(name: "Limit LHS") }
-      Array.new(2) { create_user(name: "Limit RHS") }
+      2.times { create_user(name: "Limit LHS") }
+      2.times { create_user(name: "Limit RHS") }
 
       users = (query.with_name("Limit LHS") | query.with_name("Limit RHS")).first(3).to_a
 
