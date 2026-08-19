@@ -974,6 +974,17 @@ describe Interro do
       UserQuery.new.search("search").should contain user
     end
 
+    it "generates a correct any? query when the order by includes placeholder arguments" do
+      user = create_user
+
+      # by_name_similarity_to binds a value inside the ORDER BY expression.
+      ordered = UserQuery.new.by_name_similarity_to(user.name)
+      ordered.to_sql.should end_with %{ORDER BY levenshtein(users.name, $1) ASC}
+
+      # any?/none? deliberately render without the ORDER BY clause, so they must also bind only the args for the clauses they emit — binding the full args list here raises "bind message supplies 1 parameters, but prepared statement requires 0".
+      ordered.any?.should eq true
+    end
+
     it "can check whether any records match" do
       user = create_user
       matching = UserQuery.new.with_id(user.id)
