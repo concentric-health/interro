@@ -63,8 +63,15 @@ module Interro
       self.class.new parts
     end
 
-    # Matches either a $n placeholder, capturing n, or a whole single-quoted SQL string literal ('' being an escaped quote), with no capture.
-    private PLACEHOLDER_OR_LITERAL = /\$(\d+)|'[^']*(?:''[^']*)*'/
+    # Matches either a $n placeholder, capturing n, or a whole SQL literal in which a $n has to be left alone.
+    private PLACEHOLDER_OR_LITERAL = /
+      \$(\d+)                                        # placeholder: the only alternative that captures
+      | [eE]'(?:[^'\\]|\\[\s\S]|'')*'                # E'' string, where a backslash escapes the next character
+      | '(?:[^']|'')*'                               # ordinary string, where '' is an escaped quote
+      | \$\$[\s\S]*?\$\$                             # dollar-quoted string with an empty tag
+      | \$(?<tag>[a-zA-Z_]\w*)\$[\s\S]*?\$\k<tag>\$  # dollar-quoted string with a named tag
+      | "(?:[^"]|"")*"                               # quoted identifier, where "" is an escaped quote
+    /x
 
     # Parses a raw SQL fragment, resolving each `$n` placeholder to the value it references: `$1` is `values[0]`, and so on.
     # Raises `ArgumentError` if a placeholder references no value.
