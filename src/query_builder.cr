@@ -396,8 +396,7 @@ module Interro
 
     # :doc:
     protected def where(table = sql_table_alias, &block : QueryRecord -> QueryExpression) : self
-      # Fragments are self-contained now, so each comparison's value is $1 within its own fragment.
-      where_clause = yield(QueryRecord.new(table) { 1 })
+      where_clause = yield(QueryRecord.new(table))
 
       if current_where_clause = @where_clause
         where_clause = current_where_clause & where_clause
