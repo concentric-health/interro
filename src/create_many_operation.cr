@@ -1,5 +1,6 @@
 require "db"
 require "./conflict_handler"
+require "./query_expression"
 require "./types"
 
 module Interro
@@ -9,12 +10,7 @@ module Interro
     end
 
     def call!(query : QueryBuilder(T), params : Array(NamedTuple), on_conflict conflict_handler : ConflictHandler? = nil) : Int32
-      table_name = query.sql_table_name
-      args = params
-        .flat_map(&.values.to_a)
-        .map { |value| Interro::Any.new(value) }
-        .to_a
-      sql = generate_query query.sql_table_name, params, args,
+      sql, args = generate_query query.sql_table_name, params,
         on_conflict: conflict_handler
 
       @queryable.exec(sql, args: args)
@@ -27,10 +23,10 @@ module Interro
     protected def generate_query(
       table_name : String,
       params : Array(NamedTuple),
-      args,
       on_conflict conflict_handler : ConflictHandler?,
-    )
-      String.build do |str|
+    ) : {String, Array(Any)}
+      args = [] of Any
+      sql = String.build do |str|
         str << "INSERT INTO " << table_name << " ("
         params.first.each_with_index(1) do |key, value, index|
           key.to_s.inspect str
@@ -39,11 +35,7 @@ module Interro
         str << ") VALUES "
         params.each_with_index do |param, param_index|
           str << '('
-          param.each_with_index(1) do |_key, _value, record_index|
-            arg_index = param_index * param.size + record_index
-            str << '$' << arg_index
-            str << ", " if record_index < param.size
-          end
+          QueryExpression.build_values(param.values).to_sql str, args
           str << ')'
           if param_index < params.size - 1
             str << ','
@@ -63,6 +55,8 @@ module Interro
           conflict_handler.to_sql str, start_at: start || 1
         end
       end
+
+      {sql, args}
     end
   end
 end
