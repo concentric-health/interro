@@ -10,14 +10,15 @@ module Interro
     end
 
     def call(table_name : String, where : QueryExpression)
+      args = [] of Any
       sql = String.build do |str|
         str << "DELETE FROM " << table_name
         str << " WHERE "
-        where.to_sql str
+        where.to_sql str, args
       end
 
       @queryable
-        .exec(sql, args: where.values)
+        .exec(sql, args: args)
         .rows_affected
     end
 
