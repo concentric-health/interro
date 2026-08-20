@@ -8,55 +8,41 @@ module Interro
     def initialize(@queryable : DB::Database | DB::Connection)
     end
 
-    def call(query, set values : NamedTuple, where : QueryExpression? = nil) forall U
-      args = build_args(values, where)
-      @queryable.query_all to_sql(query, where, values, returning: true), args: args, as: T
+    def call(query, set values : NamedTuple, where : QueryExpression? = nil)
+      sql, sql_args = render(query, set: QueryExpression.build_set(values), where: where, returning: true)
+
+      @queryable.query_all sql, args: sql_args, as: T
     end
 
     def call(query, set values : String, args : Array(Value) = [] of Value, where : QueryExpression? = nil)
-      if where
-        args = where.values + args
-      end
+      sql, sql_args = render(query, set: QueryExpression.parse(values, args), where: where, returning: true)
 
-      @queryable.query_all to_sql(query, where, values, returning: true), args: args, as: T
+      @queryable.query_all sql, args: sql_args, as: T
     end
 
     def call!(query, set values : NamedTuple, where : QueryExpression? = nil) : Int64
-      args = build_args(values, where)
-      @queryable.exec(to_sql(query, where, values, returning: false), args: args).rows_affected
+      sql, sql_args = render(query, set: QueryExpression.build_set(values), where: where, returning: false)
+
+      @queryable.exec(sql, args: sql_args).rows_affected
     end
 
     def call!(query, set values : String, args : Array(Value) = [] of Value, where : QueryExpression? = nil) : Int64
-      if where
-        args = where.values + args
-      end
+      sql, sql_args = render(query, set: QueryExpression.parse(values, args), where: where, returning: false)
 
-      @queryable.exec(to_sql(query, where, values, returning: false), args: args).rows_affected
+      @queryable.exec(sql, args: sql_args).rows_affected
     end
 
-    private def build_args(values : NamedTuple, where)
-      if values.is_a? NamedTuple()
-        args = [] of String
-      else
-        args = values.values.to_a
-        if where
-          args = where.values + args
-        end
-      end
-      args
-    end
-
-    def to_sql(query, where, values, *, returning : Bool = true)
+    private def render(query, set values : QueryExpression, where : QueryExpression?, *, returning : Bool) : {String, Array(Any)}
       table_name = query.sql_table_name
-
+      sql_args = [] of Any
       sql = String.build do |str|
         str << "UPDATE " << table_name << ' '
         str << "SET "
-        sqlize values, where, to: str
+        values.to_sql str, sql_args
 
         if where
           str << " WHERE "
-          where.to_sql str
+          where.to_sql str, sql_args
         end
 
         if returning
@@ -64,25 +50,8 @@ module Interro
           query.select_columns str
         end
       end
-    end
 
-    private def sqlize(values : NamedTuple, where, to io) : Nil
-      where_size = (where.try(&.values.size) || 0)
-      last_index = values.size + where_size
-      values.each_with_index(where_size + 1) do |key, value, index|
-        key.to_s io
-        io << " = $" << index
-        if index < last_index
-          io << ", "
-        end
-      end
-    end
-
-    private def sqlize(values : String, where, to io) : Nil
-      start = where.try(&.values.size) || 0
-      io << values.gsub /\$\d+/ do |match|
-        "$#{match[1..].to_i + start}"
-      end
+      {sql, sql_args}
     end
   end
 end
