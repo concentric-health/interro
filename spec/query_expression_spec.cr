@@ -49,6 +49,28 @@ module Interro
         expression.to_sql.should eq "note = 'it''s $1' AND id = $1"
         expression.values.should eq [Any.new(1)]
       end
+
+      it "leaves $n inside an E'' string alone, including backslash escapes" do
+        fragment = %q{note = E'it\'s $1' AND id = $1}
+        expression = QueryExpression.parse(fragment, [Any.new(1)])
+
+        expression.to_sql.should eq %q{note = E'it\'s $1' AND id = $1}
+        expression.values.should eq [Any.new(1)]
+      end
+
+      it "leaves $n inside a dollar-quoted string alone, tagged or not" do
+        expression = QueryExpression.parse("note = $$costs $1$$ AND tag = $tag$costs $2$tag$ AND id = $1", [Any.new(1)])
+
+        expression.to_sql.should eq "note = $$costs $1$$ AND tag = $tag$costs $2$tag$ AND id = $1"
+        expression.values.should eq [Any.new(1)]
+      end
+
+      it "leaves $n inside a quoted identifier alone" do
+        expression = QueryExpression.parse(%{"col$2" = $1}, [Any.new(1)])
+
+        expression.to_sql.should eq %{"col$2" = $1}
+        expression.values.should eq [Any.new(1)]
+      end
     end
 
     describe "#to_sql" do
