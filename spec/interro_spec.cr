@@ -360,6 +360,10 @@ struct GroupQuery < Interro::QueryBuilder(Group)
     where(id: group.id).update! "member_count = member_count + $1", [count]
   end
 
+  def rename_with_literal_dollar(group : Group)
+    where(id: group.id).update! "name = 'costs $2'"
+  end
+
   def scope_to(groups : Enumerable(Group))
     where id: groups.map(&.id)
   end
@@ -845,6 +849,14 @@ describe Interro do
       user.id.should eq created_users[1].id
       user.name.should eq new_name
       user.email.should eq new_email
+    end
+
+    it "leaves $n inside a string literal in a raw SET clause alone" do
+      group = create_group
+
+      GroupQuery.new.rename_with_literal_dollar(group).should eq 1
+
+      GroupQuery.new.reload(group).name.should eq "costs $2"
     end
 
     it "can update records with SQL expressions" do

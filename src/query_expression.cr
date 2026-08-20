@@ -63,6 +63,16 @@ module Interro
       self.class.new parts
     end
 
+    # Builds the assignment list for a SET from a `NamedTuple` or a `Hash`.
+    def self.build_set(params) : self
+      parts = Array(Part).new(params.size * 3)
+      params.each_with_index(1) do |key, value, index|
+        parts << "#{key} = " << Any.new(value)
+        parts << ", " if index < params.size
+      end
+      new parts
+    end
+
     # Matches either a $n placeholder, capturing n, or a whole single-quoted SQL string literal ('' being an escaped quote), with no capture.
     private PLACEHOLDER_OR_LITERAL = /\$(\d+)|'[^']*(?:''[^']*)*'/
 
