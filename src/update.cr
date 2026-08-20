@@ -1,4 +1,5 @@
 require "./conflict_handler/action"
+require "./query_expression"
 
 module Interro
   struct Update(T)
@@ -9,15 +10,10 @@ module Interro
     def initialize(set @params)
     end
 
-    def to_sql(io, start_at initial_index) : Nil
+    def to_sql(io, args : Array(Any)) : Nil
       io << "UPDATE SET "
       {% if T <= Hash || T <= NamedTuple %}
-        params.each_with_index 1 do |key, _, index|
-          io << key.to_s << " = $" << initial_index + index
-          if index < params.size
-            io << ", "
-          end
-        end
+        QueryExpression.build_set(params).to_sql io, args
       {% elsif T <= String %}
         io << params
       {% else %}

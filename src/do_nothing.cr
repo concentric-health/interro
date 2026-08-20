@@ -4,10 +4,7 @@ module Interro
   struct DoNothing
     include ConflictHandler::Action
 
-    def params
-    end
-
-    def to_sql(io, start_at) : Nil
+    def to_sql(io, args : Array(Any)) : Nil
       io << "NOTHING"
     end
   end

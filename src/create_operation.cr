@@ -42,13 +42,7 @@ module Interro
         QueryExpression.build_values(params.values).to_sql str, args
         str << ") "
         if conflict_handler
-          if (action = conflict_handler.action) && (handler_params = action.params)
-            start = params.size
-            handler_params.each_value do |value|
-              args << Interro::Any.new(value)
-            end
-          end
-          conflict_handler.to_sql str, start_at: start || 1
+          conflict_handler.to_sql str, args
         end
         if returning_clause
           str << " RETURNING "

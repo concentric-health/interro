@@ -8,9 +8,9 @@ module Interro
     def initialize(@columns : String, do @action)
     end
 
-    def to_sql(io, start_at initial_index : Int) : Nil
+    def to_sql(io, args : Array(Any)) : Nil
       io << "ON CONFLICT (" << @columns << ") DO "
-      action.to_sql io, start_at: initial_index
+      action.to_sql io, args
     end
   end
 end
