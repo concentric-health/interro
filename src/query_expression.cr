@@ -73,6 +73,17 @@ module Interro
       new parts
     end
 
+    # Builds a comma-separated list for the VALUES list of an INSERT.
+    def self.build_values(values : Enumerable) : self
+      size = values.size
+      parts = Array(Part).new(size * 2)
+      values.each_with_index(1) do |value, index|
+        parts << Any.new(value)
+        parts << ", " if index < size
+      end
+      new parts
+    end
+
     # Matches either a $n placeholder, capturing n, or a whole single-quoted SQL string literal ('' being an escaped quote), with no capture.
     private PLACEHOLDER_OR_LITERAL = /\$(\d+)|'[^']*(?:''[^']*)*'/
 

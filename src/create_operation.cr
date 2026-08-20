@@ -1,5 +1,6 @@
 require "db"
 require "./conflict_handler"
+require "./query_expression"
 require "./types"
 
 module Interro
@@ -9,12 +10,7 @@ module Interro
     end
 
     def call(query : QueryBuilder(T), params, on_conflict conflict_handler : ConflictHandler? = nil) : T
-      table_name = query.sql_table_name
-      args = params
-        .values
-        .map { |value| Interro::Any.new(value) }
-        .to_a
-      sql = generate_query query.sql_table_name, params, args,
+      sql, args = generate_query query.sql_table_name, params,
         on_conflict: conflict_handler,
         returning: ->(io : IO) { query.select_columns io }
 
@@ -22,12 +18,7 @@ module Interro
     end
 
     def call!(query : QueryBuilder(T), params, on_conflict conflict_handler : ConflictHandler? = nil) : Bool
-      table_name = query.sql_table_name
-      args = params
-        .values
-        .map { |value| Interro::Any.new(value) }
-        .to_a
-      sql = generate_query query.sql_table_name, params, args,
+      sql, args = generate_query query.sql_table_name, params,
         on_conflict: conflict_handler,
         returning: nil
 
@@ -37,10 +28,10 @@ module Interro
     protected def generate_query(
       table_name : String,
       params,
-      args,
       on_conflict conflict_handler : ConflictHandler?,
       returning returning_clause,
-    )
+    ) : {String, Array(Any)}
+      args = [] of Any
       sql = String.build do |str|
         str << "INSERT INTO " << table_name << " ("
         params.each_with_index(1) do |key, value, index|
@@ -48,10 +39,7 @@ module Interro
           str << ", " if index < params.size
         end
         str << ") VALUES ("
-        params.each_with_index(1) do |key, value, index|
-          str << '$' << index
-          str << ", " if index < params.size
-        end
+        QueryExpression.build_values(params.values).to_sql str, args
         str << ") "
         if conflict_handler
           if (action = conflict_handler.action) && (handler_params = action.params)
@@ -67,6 +55,8 @@ module Interro
           returning_clause.call str
         end
       end
+
+      {sql, args}
     end
   end
 end
