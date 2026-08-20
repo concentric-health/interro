@@ -43,16 +43,7 @@ module Interro
           str << ' '
         end
         if conflict_handler
-          if (action = conflict_handler.action) && (handler_params = action.params)
-            if handler_params.responds_to? :each_value
-              # The VALUES lists consume one placeholder per row per column.
-              start = params.size * params.first.size
-              handler_params.each_value do |value|
-                args << Interro::Any.new(value)
-              end
-            end
-          end
-          conflict_handler.to_sql str, start_at: start || 1
+          conflict_handler.to_sql str, args
         end
       end
 
