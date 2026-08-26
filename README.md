@@ -295,3 +295,10 @@ end
 ## Contributors
 
 - [Jamie Gaskins](https://github.com/jgaskins) - creator and maintainer
+
+## Concentric fork notes
+
+This branch diverges from upstream (jgaskins/interro) in one way that is deliberate and permanent: the ambient-transaction fallback.
+Queries built without an explicit `Query[txn]` binding join the fiber-local transaction registered by `Interro.transaction`, so code inside a transaction block needs no explicit plumbing and application specs get Clear-style per-example rollback isolation.
+Upstream's specs assert the opposite semantics (unbound queries are isolated from open transactions), so the ambient-fallback commit must never be upstreamed.
+It is kept at the tip of this branch so that every commit below it remains clean upstream PR material.

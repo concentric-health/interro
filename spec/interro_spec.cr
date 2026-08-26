@@ -1136,8 +1136,8 @@ describe Interro do
         end
       end
 
-      # This spec may seem silly, but transactions are isolated (the I in ACID)
-      # so we need to be sure that reads happen within that bubble.
+      # Concentric patch: queries without an explicit transaction join the fiber's ambient transaction, so they see its uncommitted writes too.
+      # Upstream asserts the opposite (unbound queries are isolated from open transactions); this divergence is deliberate.
       it "reads its own writes" do
         group = GroupQuery.new.create name: "The Group"
 
@@ -1145,8 +1145,13 @@ describe Interro do
           gq = GroupQuery[txn]
 
           gq.change_name(group, "The Same Group")
-          GroupQuery.new.with_id(group.id).first.name.should eq "The Group"
+          GroupQuery.new.with_id(group.id).first.name.should eq "The Same Group"
           gq.with_id(group.id).first.name.should eq "The Same Group"
+
+          # The ambient transaction is fiber-local, so isolation still holds across fibers.
+          name = Channel(String).new
+          spawn { name.send GroupQuery.new.with_id(group.id).first.name }
+          name.receive.should eq "The Group"
         end
       end
 
