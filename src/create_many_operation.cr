@@ -8,19 +8,6 @@ module Interro
     def initialize(@queryable : DB::Database | DB::Connection)
     end
 
-    def call(query : QueryBuilder(T), params, on_conflict conflict_handler : ConflictHandler? = nil) : T
-      table_name = query.sql_table_name
-      args = params
-        .values
-        .map { |value| Interro::Any.new(value) }
-        .to_a
-      sql = generate_query query.sql_table_name, params, args,
-        on_conflict: conflict_handler,
-        returning: ->(io : IO) { query.select_columns io }
-
-      @queryable.query_one sql, args: args, as: T
-    end
-
     def call!(query : QueryBuilder(T), params : Array(NamedTuple), on_conflict conflict_handler : ConflictHandler? = nil) : Int32
       table_name = query.sql_table_name
       args = params
