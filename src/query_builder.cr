@@ -414,9 +414,6 @@ module Interro
 
     # :doc:
     protected def where(expression : String, values : Array(Value) = [] of Value) : self
-      # Must upcast all values in the array to Interro::Value objects
-      values = values.map { |value| Any.new(value) }
-
       where_clause = Interro::QueryExpression.parse(expression, values)
 
       if current_where_clause = @where_clause
@@ -467,9 +464,8 @@ module Interro
     end
 
     # :doc:
-    protected def order_by(expression, direction, args : Array(Interro::Value)? = nil) : self
-      values = args.try(&.map { |arg| Any.new arg }) || [] of Any
-      order_by_clause = OrderBy{QueryExpression.parse(expression, values) => direction.to_s}
+    protected def order_by(expression, direction, args : Array(Interro::Value) = [] of Value) : self
+      order_by_clause = OrderBy{QueryExpression.parse(expression, args) => direction.to_s}
 
       if current_order_clause = @order_by_clause
         order_by_clause = current_order_clause.merge(order_by_clause)
@@ -499,7 +495,7 @@ module Interro
       # A distinct expression is raw SQL with no values of its own, so a $n in one cannot resolve to anything and `parse` rejects it.
       # An ORDER BY expression that carries values does not need repeating here: its key is added to the subclause when the query is rendered, and Postgres is satisfied as long as every ORDER BY expression appears there.
       new = dup
-      new.distinct = expressions.map { |expression| QueryExpression.parse(expression, [] of Any) }.to_a
+      new.distinct = expressions.map { |expression| QueryExpression.parse(expression) }.to_a
       new
     end
 
