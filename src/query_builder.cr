@@ -932,7 +932,9 @@ module Interro
     end
 
     private def connection(db)
-      @transaction.try(&.connection) || db
+      # Concentric patch: fall back to the fiber's ambient transaction (see `Interro.transaction`), so queries inside a transaction block don't need explicit `Query[txn]` plumbing.
+      # The ambient transaction is keyed by this class's write pool; reads inside a transaction route to that same connection so they see uncommitted data.
+      @transaction.try(&.connection) || Interro.ambient_transaction(write_database).try(&.connection) || db
     end
 
     class ResultSetIterator(T)
