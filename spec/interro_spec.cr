@@ -1150,6 +1150,26 @@ describe Interro do
         end
       end
 
+      it "rolls back a nested transaction to a savepoint without aborting the outer one" do
+        group = create_group
+
+        Interro.transaction do |txn|
+          GroupQuery[txn].change_name(group, "Outer Name")
+
+          expect_raises Exception, "boom" do
+            Interro.transaction do |nested|
+              GroupQuery[nested].change_name(group, "Nested Name")
+              raise Exception.new("boom")
+            end
+          end
+
+          # The savepoint rolled back the nested write, and the outer transaction is still usable.
+          GroupQuery[txn].with_id(group.id).first.name.should eq "Outer Name"
+        end
+
+        GroupQuery.new.with_id(group.id).first.name.should eq "Outer Name"
+      end
+
       it "runs a block after committing" do
         run = false
 
@@ -1202,26 +1222,29 @@ describe Interro do
     it "can lock records with FOR UPDATE" do
       user = create_user
       Interro.transaction do |txn1|
-        fetched_user = UserQuery[txn1]
+        UserQuery[txn1]
           .with_id(user.id)
           .lock_rows
           .to_sql
           .should end_with "FOR UPDATE"
 
-        # Different transaction
-        Interro.transaction do |txn2|
-          UserQuery[txn1]
-            .with_id(user.id)
-            .lock_rows(skip_locked: true)
-            .to_a
-            .should eq [user]
+        UserQuery[txn1]
+          .with_id(user.id)
+          .lock_rows(skip_locked: true)
+          .to_a
+          .should eq [user]
 
-          UserQuery[txn2] # note: different transaction
-            .with_id(user.id)
-            .lock_rows(skip_locked: true)
-            .to_a
-            .should be_empty
+        # A nested Interro.transaction is now a savepoint on the same connection, so a genuinely concurrent transaction needs its own fiber (open transactions are tracked per fiber).
+        results = Channel(Array(User)).new
+        spawn do
+          Interro.transaction do |txn2|
+            results.send UserQuery[txn2]
+              .with_id(user.id)
+              .lock_rows(skip_locked: true)
+              .to_a
+          end
         end
+        results.receive.should be_empty
       end
     end
 

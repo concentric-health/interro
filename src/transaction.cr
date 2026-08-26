@@ -39,6 +39,18 @@ module Interro
       @original
     end
 
+    # Open a nested savepoint transaction (crystal-db `SavePointTransaction`) wrapped in an `Interro::Transaction`.
+    # `commit` on the returned transaction releases the savepoint; `rollback` rolls back to it.
+    def create_savepoint : Transaction
+      Transaction.new(@original.begin_transaction)
+    end
+
+    # :nodoc:
+    # Needed because `DB::SavePointTransaction#begin_transaction` dispatches this on its `@parent : DB::Transaction`, and this class is a `DB::Transaction` subtype.
+    def create_save_point_transaction(parent : DB::Transaction) : DB::SavePointTransaction
+      @original.create_save_point_transaction(parent)
+    end
+
     # :nodoc:
     def connection : DB::Connection
       @original.connection
