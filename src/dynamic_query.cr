@@ -54,6 +54,8 @@ module Interro
     delegate(
       sql_table_alias,
       model_table_mappings,
+      read_database,
+      write_database,
       to: @delegate
     )
 
